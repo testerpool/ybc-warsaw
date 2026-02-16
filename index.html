@@ -605,21 +605,58 @@ body{
 const obs=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('vis')})},{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 
+// Відправка прямо в Telegram (Bot API). Коли буде ID бесіди — підстав його в TELEGRAM_CHAT_ID.
+const TELEGRAM_BOT_TOKEN = '8540186250:AAHL4Wqn1WU-gfZt_yf7HXCk8qZpLUJciag';
+const TELEGRAM_CHAT_ID = '597669543'; // тест у личку; потім можна змінити на ID групи
+
+async function sendToTelegram(name, phone, form){
+  if (!TELEGRAM_CHAT_ID) throw new Error('Chat ID не задано');
+  const source = form === 'top' ? 'Верхня форма' : form === 'bottom' ? 'Нижня форма' : 'Форма';
+  const text = [
+    '🆕 Нова заявка — YBC Warsaw',
+    '',
+    '📌 Джерело: ' + source,
+    "👤 Ім'я: " + (name || '').trim(),
+    '📞 Телефон: ' + (phone || '').trim(),
+    '',
+    'Час: ' + new Date().toLocaleString('uk-UA')
+  ].join('\n');
+  const r = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text, disable_web_page_preview: true })
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!data.ok) throw new Error(data.description || 'Помилка відправки');
+}
+
 function submitTop(){
   const n=document.getElementById('topName'),p=document.getElementById('topPhone');
   if(!n.value.trim()){n.style.borderColor='#c00';n.focus();return;}
   if(!p.value.trim()||p.value.trim().length<6){p.style.borderColor='#c00';p.focus();return;}
-  document.getElementById('topFormContent').style.display='none';
-  document.getElementById('topFormOk').classList.add('vis');
-  console.log('Top:',{name:n.value,phone:p.value});
+  const btn = document.querySelector('#topFormContent .btn-black');
+  if(btn){ btn.disabled=true; btn.textContent='Відправка…'; }
+  sendToTelegram(n.value,p.value,'top').then(()=>{
+    document.getElementById('topFormContent').style.display='none';
+    document.getElementById('topFormOk').classList.add('vis');
+  }).catch(()=>{
+    if(btn){ btn.disabled=false; btn.innerHTML='Зареєструватися <span class="arrow">→</span>'; }
+    alert('Не вдалося відправити заявку. Спробуйте пізніше або зв\'яжіться з нами напряму.');
+  });
 }
 function submitBtm(){
   const n=document.getElementById('btmName'),p=document.getElementById('btmPhone');
   if(!n.value.trim()){n.style.borderColor='#c00';n.focus();return;}
   if(!p.value.trim()||p.value.trim().length<6){p.style.borderColor='#c00';p.focus();return;}
-  document.getElementById('btmFormContent').style.display='none';
-  document.getElementById('btmFormOk').classList.add('vis');
-  console.log('Btm:',{name:n.value,phone:p.value});
+  const btn = document.querySelector('#btmFormContent .form-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Відправка…'; }
+  sendToTelegram(n.value,p.value,'bottom').then(()=>{
+    document.getElementById('btmFormContent').style.display='none';
+    document.getElementById('btmFormOk').classList.add('vis');
+  }).catch(()=>{
+    if(btn){ btn.disabled=false; btn.textContent='Зареєструватися →'; }
+    alert('Не вдалося відправити заявку. Спробуйте пізніше або зв\'яжіться з нами напряму.');
+  });
 }
 document.querySelectorAll('.fg input,.form-row input').forEach(i=>{i.addEventListener('input',()=>{i.style.borderColor='';});});
 document.querySelectorAll('input[type="tel"]').forEach(i=>{i.addEventListener('input',function(){this.value=this.value.replace(/[^\d+]/g,'');});});
