@@ -622,7 +622,7 @@ async function sendToTelegram(name, phone, form){
     "👤 Ім'я: " + (name || '').trim(),
     '📞 Телефон: ' + (phone || '').trim(),
     '',
-    'Час: ' + new Date().toLocaleString('uk-UA')
+    'Час: ' + new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Warsaw' })
   ].join('\n');
   const r = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
     method: 'POST',
