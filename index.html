@@ -628,14 +628,21 @@ const TELEGRAM_RETRIES = 4;
 const TELEGRAM_RETRY_DELAYS_MS = [0, 1500, 3000, 5000];
 
 async function sendToTelegram(name, phone, form){
+  const phoneStr = (phone || '').trim();
+  const nameStr = (name || '').trim();
+  if (!phoneStr || phoneStr.length < 5) {
+    console.log('Empty submission blocked');
+    return;
+  }
   if (!TELEGRAM_CHAT_ID) throw new Error('Chat ID не задано');
   const source = form === 'top' ? 'Верхня форма' : form === 'bottom' ? 'Нижня форма' : 'Форма';
+  // First line ASCII-only so push preview never shows a dot (Cyrillic/emoji quirk on some clients)
   const text = [
-    'Нова заявка — YBC Warsaw',
+    '[YBC Warsaw] New application',
     '',
-    'Джерело: ' + source,
-    "Ім'я: " + (name || '').trim(),
-    'Телефон: ' + (phone || '').trim(),
+    'Source: ' + source,
+    "Ім'я: " + nameStr,
+    'Телефон: ' + phoneStr,
     '',
     'Час: ' + new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Warsaw' })
   ].join('\n');
@@ -667,8 +674,9 @@ async function sendToTelegram(name, phone, form){
 
 function submitTop(){
   const n=document.getElementById('topName'),p=document.getElementById('topPhone');
-  if(!n.value.trim()){n.style.borderColor='#c00';n.focus();return;}
-  if(!p.value.trim()||p.value.trim().length<6){p.style.borderColor='#c00';p.focus();return;}
+  const phoneVal = (p && p.value || '').trim();
+  if (!(n && n.value && n.value.trim())) { if(n){ n.style.borderColor='#c00'; n.focus(); } console.log('Empty submission blocked'); return; }
+  if (!phoneVal || phoneVal.length < 5) { if(p){ p.style.borderColor='#c00'; p.focus(); } console.log('Empty submission blocked'); return; }
   const btn = document.querySelector('#topFormContent .btn-black');
   if(btn){ btn.disabled=true; btn.textContent='Відправка…'; }
   sendToTelegram(n.value,p.value,'top').then(()=>{
@@ -681,8 +689,9 @@ function submitTop(){
 }
 function submitBtm(){
   const n=document.getElementById('btmName'),p=document.getElementById('btmPhone');
-  if(!n.value.trim()){n.style.borderColor='#c00';n.focus();return;}
-  if(!p.value.trim()||p.value.trim().length<6){p.style.borderColor='#c00';p.focus();return;}
+  const phoneVal = (p && p.value || '').trim();
+  if (!(n && n.value && n.value.trim())) { if(n){ n.style.borderColor='#c00'; n.focus(); } console.log('Empty submission blocked'); return; }
+  if (!phoneVal || phoneVal.length < 5) { if(p){ p.style.borderColor='#c00'; p.focus(); } console.log('Empty submission blocked'); return; }
   const btn = document.querySelector('#btmFormContent .form-btn');
   if(btn){ btn.disabled=true; btn.textContent='Відправка…'; }
   sendToTelegram(n.value,p.value,'bottom').then(()=>{
