@@ -623,25 +623,46 @@ document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 const TELEGRAM_BOT_TOKEN = '8540186250:AAHL4Wqn1WU-gfZt_yf7HXCk8qZpLUJciag';
 const TELEGRAM_CHAT_ID = '-5253583356'; // бесіда YBC Warsaw
 
+const TELEGRAM_SEND_TIMEOUT_MS = 15000;
+const TELEGRAM_RETRIES = 4;
+const TELEGRAM_RETRY_DELAYS_MS = [0, 1500, 3000, 5000];
+
 async function sendToTelegram(name, phone, form){
   if (!TELEGRAM_CHAT_ID) throw new Error('Chat ID не задано');
   const source = form === 'top' ? 'Верхня форма' : form === 'bottom' ? 'Нижня форма' : 'Форма';
   const text = [
-    '🆕 Нова заявка — YBC Warsaw',
+    'Нова заявка — YBC Warsaw',
     '',
-    '📌 Джерело: ' + source,
-    "👤 Ім'я: " + (name || '').trim(),
-    '📞 Телефон: ' + (phone || '').trim(),
+    'Джерело: ' + source,
+    "Ім'я: " + (name || '').trim(),
+    'Телефон: ' + (phone || '').trim(),
     '',
     'Час: ' + new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Warsaw' })
   ].join('\n');
-  const r = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text, disable_web_page_preview: true })
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!data.ok) throw new Error(data.description || 'Помилка відправки');
+  if (!text || text.length < 10) throw new Error('Текст повідомлення порожній');
+
+  const body = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text, disable_web_page_preview: true });
+  let lastErr;
+  for (let i = 0; i < TELEGRAM_RETRIES; i++) {
+    if (TELEGRAM_RETRY_DELAYS_MS[i] > 0) await new Promise(r => setTimeout(r, TELEGRAM_RETRY_DELAYS_MS[i]));
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), TELEGRAM_SEND_TIMEOUT_MS);
+      const r = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+        signal: ctrl.signal
+      });
+      clearTimeout(t);
+      const data = await r.json().catch(() => ({}));
+      if (data.ok) return;
+      lastErr = new Error(data.description || 'Помилка відправки');
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
 }
 
 function submitTop(){
